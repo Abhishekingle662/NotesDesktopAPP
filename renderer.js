@@ -11,6 +11,31 @@ const viewerContent = document.getElementById('viewerContent')
 const viewerTitle = document.getElementById('viewerTitle')
 const noteTitleInput = document.getElementById('noteTitle')
 
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize TinyMCE
+    tinymce.init({
+        selector: '#noteContent',
+        height: 400,
+        menubar: true,
+        base_url: './node_modules/tinymce',
+        plugins: [
+            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+            'insertdatetime', 'table', 'help', 'wordcount'
+        ],
+        toolbar: 'undo redo | formatselect | ' +
+            'bold italic backcolor | alignleft aligncenter ' +
+            'alignright alignjustify | bullist numlist outdent indent | ' +
+            'removeformat | help',
+        content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px }'
+    }).then(() => {
+        console.log('TinyMCE initialized successfully');
+    }).catch(err => {
+        console.error('TinyMCE initialization failed:', err);
+    });
+});
+
 // Load notes when app starts
 ipcRenderer.send('get-notes')
 
@@ -46,7 +71,7 @@ ipcRenderer.on('notes-updated', (event, notes) => {
       e.stopPropagation()
       currentNote = note
       noteTitleInput.value = note.title || ''
-      noteContent.value = note.content
+      tinymce.get('noteContent').setContent(note.content)
       saveButton.textContent = 'Update Note'
       noteTitleInput.focus()
     }
@@ -71,49 +96,74 @@ ipcRenderer.on('notes-updated', (event, notes) => {
   })
 })
 
-// Save/Update note
+// Save button handler
 saveButton.addEventListener('click', () => {
-  if (!noteContent.value.trim()) {
-    alert('Note content cannot be empty!')
-    return
-  }
+    console.log('Save button clicked'); // Debug log
+    
+    // Wait for TinyMCE to be initialized
+    if (!tinymce.get('noteContent')) {
+        console.error('TinyMCE not initialized');
+        return;
+    }
 
-  const note = {
-    id: currentNote ? currentNote.id : null,
-    title: noteTitleInput.value.trim() || 'Untitled Note',
-    content: noteContent.value,
-    timestamp: Date.now()
-  }
-  
-  ipcRenderer.send('save-note', note)
-  noteContent.value = ''
-  noteTitleInput.value = ''
-  currentNote = null
-  saveButton.textContent = 'Save Note'
-})
+    const content = tinymce.get('noteContent').getContent();
+    const title = noteTitleInput.value.trim();
+
+    console.log('Content:', content); // Debug log
+    console.log('Title:', title); // Debug log
+
+    if (!content.trim()) {
+        alert('Note content cannot be empty!');
+        return;
+    }
+
+    const note = {
+        id: currentNote ? currentNote.id : Date.now(),
+        title: title || 'Untitled Note',
+        content: content,
+        timestamp: Date.now()
+    };
+
+    console.log('Sending note to main process:', note); // Debug log
+
+    // Send to main process
+    ipcRenderer.send('save-note', note);
+
+    // Clear the editor
+    tinymce.get('noteContent').setContent('');
+    noteTitleInput.value = '';
+    currentNote = null;
+    saveButton.textContent = 'Save Note';
+});
 
 // Cancel edit
 cancelButton.addEventListener('click', () => {
-  noteContent.value = ''
-  noteTitleInput.value = ''
-  currentNote = null
-  saveButton.textContent = 'Save Note'
+    tinymce.get('noteContent').setContent('')
+    noteTitleInput.value = ''
+    currentNote = null
+    saveButton.textContent = 'Save Note'
 })
 
 // Add handler for displaying notes
 ipcRenderer.on('display-note', (event, note) => {
-  if (!note) return;
-  currentlyViewedNoteId = note.id
-  viewerContent.textContent = note.content
-  viewerTitle.textContent = note.title || 'Untitled Note'
-  noteViewer.style.display = 'block'
+    if (!note) return;
+    currentlyViewedNoteId = note.id
+    viewerContent.innerHTML = note.content // Change from textContent to innerHTML
+    viewerTitle.textContent = note.title || 'Untitled Note'
+    noteViewer.style.display = 'block'
 })
 
 // Add handler for deleted notes
 ipcRenderer.on('note-deleted', (event, noteId) => {
-  if (currentlyViewedNoteId === noteId) {
-    noteViewer.style.display = 'none'
-    viewerContent.textContent = ''
-    currentlyViewedNoteId = null
-  }
+    if (currentlyViewedNoteId === noteId) {
+        noteViewer.style.display = 'none'
+        viewerContent.textContent = ''
+        currentlyViewedNoteId = null
+    }
 })
+
+// Add error handler
+ipcRenderer.on('save-error', (event, errorMessage) => {
+    console.error('Save error:', errorMessage);
+    alert('Error saving note: ' + errorMessage);
+});

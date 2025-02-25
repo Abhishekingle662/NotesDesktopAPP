@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'"
-    />
-    <meta
-      http-equiv="X-Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'"
-    />
-    <title>Notes App</title>
-    <link rel="stylesheet" href="styles.css">
-  </head>
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+          http-equiv="Content-Security-Policy"
+          content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline'; 
+                   style-src 'self' 'unsafe-inline'; 
+                   img-src 'self' data:; 
+                   font-src 'self';"
+        />
+        <title>Notes App</title>
+        <link rel="stylesheet" href="styles.css">
+        <script src="./node_modules/tinymce/tinymce.min.js"></script>
+      </head>
   <body>
     <div class="container">
       <div class="sidebar" id="notesList"></div>
@@ -24,7 +24,7 @@
         </div>
         <div class="note-editor">
           <input type="text" id="noteTitle" placeholder="Note Title..." class="title-input">
-          <textarea id="noteContent" placeholder="Write your note here..."></textarea>
+          <div id="noteContent">Loading editor...</div>
           <div class="button-group">
             <button class="button save-button" id="saveNote">Save Note</button>
             <button class="button cancel-button" id="cancelEdit">Cancel</button>

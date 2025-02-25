@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
-let activeNoteId = null; // Add this at the top with other constants
+let activeNoteId = null;
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -15,6 +15,24 @@ const createWindow = () => {
     }
   })
 
+  // Set proper CSP headers
+  win.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' https://cdn.tiny.cloud https://sp.tinymce.com; " +
+          "script-src 'self' 'unsafe-inline' https://cdn.tiny.cloud; " +
+          "style-src 'self' 'unsafe-inline' https://cdn.tiny.cloud; " +
+          "img-src 'self' data: https://cdn.tiny.cloud https://sp.tinymce.com; " +
+          "font-src 'self' https://cdn.tiny.cloud; " +
+          "connect-src 'self' https://cdn.tiny.cloud https://sp.tinymce.com"
+        ]
+      }
+    })
+  })
+
+  // Load the index.html file directly
   win.loadFile('index.html')
 }
 
@@ -24,26 +42,55 @@ app.whenReady().then(() => {
 
 // Handle note operations
 ipcMain.on('save-note', (event, note) => {
-  const notesPath = path.join(app.getPath('userData'), 'notes.json')
-  let notes = []
+  const notesPath = path.join(app.getPath('userData'), 'notes.json');
+  console.log('Notes path:', notesPath); // Debug log
+  let notes = [];
   
-  if (fs.existsSync(notesPath)) {
-    notes = JSON.parse(fs.readFileSync(notesPath))
-  }
-  
-  if (note.id) {
-    notes = notes.map(n => n.id === note.id ? note : n)
-    if (note.id === activeNoteId) {
-      event.reply('display-note', note) // Update viewer if active note is edited
+  try {
+    // Create the file if it doesn't exist
+    if (!fs.existsSync(notesPath)) {
+      fs.writeFileSync(notesPath, JSON.stringify([], null, 2));
     }
-  } else {
-    note.id = Date.now()
-    notes.push(note)
+
+    // Read existing notes
+    const fileContent = fs.readFileSync(notesPath, 'utf8');
+    try {
+      notes = JSON.parse(fileContent);
+    } catch (parseError) {
+      console.error('Error parsing notes file:', parseError);
+      notes = [];
+    }
+
+    // Add or update note
+    if (note.id) {
+      const index = notes.findIndex(n => n.id === note.id);
+      if (index !== -1) {
+        notes[index] = note;
+      } else {
+        notes.push(note);
+      }
+      console.log('Updated existing note'); // Debug log
+    } else {
+      note.id = Date.now(); // Ensure unique ID
+      notes.push(note);
+      console.log('Added new note'); // Debug log
+    }
+    
+    // Save to file
+    fs.writeFileSync(notesPath, JSON.stringify(notes, null, 2), 'utf8');
+    console.log('Notes saved successfully'); // Debug log
+    console.log('Current notes:', notes); // Debug log
+    
+    event.reply('notes-updated', notes);
+    
+    if (note.id === activeNoteId) {
+      event.reply('display-note', note);
+    }
+  } catch (error) {
+    console.error('Error saving note:', error);
+    event.reply('save-error', error.message);
   }
-  
-  fs.writeFileSync(notesPath, JSON.stringify(notes))
-  event.reply('notes-updated', notes)
-})
+});
 
 ipcMain.on('get-notes', (event) => {
   const notesPath = path.join(app.getPath('userData'), 'notes.json')
