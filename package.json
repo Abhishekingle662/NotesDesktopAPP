@@ -1,0 +1,23 @@
+{
+  "name": "notesapp",
+  "version": "1.0.0",
+  "description": "Simple notes app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abhishekingle662/NotesDesktopAPP.git"
+  },
+  "author": "\"Abhishek Ingle\"",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Abhishekingle662/NotesDesktopAPP/issues"
+  },
+  "homepage": "https://github.com/Abhishekingle662/NotesDesktopAPP#readme",
+  "devDependencies": {
+    "electron": "^34.2.0"
+  }
+}
