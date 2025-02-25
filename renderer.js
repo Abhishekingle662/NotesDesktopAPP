@@ -1,10 +1,15 @@
 const { ipcRenderer } = require('electron')
 
 let currentNote = null
+let currentlyViewedNoteId = null;
 const notesList = document.getElementById('notesList')
 const noteContent = document.getElementById('noteContent')
 const saveButton = document.getElementById('saveNote')
 const cancelButton = document.getElementById('cancelEdit')
+const noteViewer = document.getElementById('noteViewer')
+const viewerContent = document.getElementById('viewerContent')
+const viewerTitle = document.getElementById('viewerTitle')
+const noteTitleInput = document.getElementById('noteTitle')
 
 // Load notes when app starts
 ipcRenderer.send('get-notes')
@@ -18,10 +23,20 @@ ipcRenderer.on('notes-updated', (event, notes) => {
     
     const contentDiv = document.createElement('div')
     contentDiv.className = 'note-content'
-    contentDiv.textContent = note.content.substring(0, 50) + (note.content.length > 50 ? '...' : '')
+    contentDiv.textContent = note.title || 'Untitled Note' // Show title instead of content
     
     const buttonsDiv = document.createElement('div')
     buttonsDiv.className = 'button-group'
+    
+    // View button
+    const viewButton = document.createElement('button')
+    viewButton.textContent = 'View'
+    viewButton.className = 'button view-button'
+    viewButton.onclick = (e) => {
+      e.stopPropagation()
+      currentlyViewedNoteId = note.id
+      ipcRenderer.send('view-note', note.id)
+    }
     
     // Edit button
     const editButton = document.createElement('button')
@@ -30,9 +45,10 @@ ipcRenderer.on('notes-updated', (event, notes) => {
     editButton.onclick = (e) => {
       e.stopPropagation()
       currentNote = note
+      noteTitleInput.value = note.title || ''
       noteContent.value = note.content
       saveButton.textContent = 'Update Note'
-      noteContent.focus()
+      noteTitleInput.focus()
     }
     
     // Delete button
@@ -46,6 +62,7 @@ ipcRenderer.on('notes-updated', (event, notes) => {
       }
     }
 
+    buttonsDiv.appendChild(viewButton)
     buttonsDiv.appendChild(editButton)
     buttonsDiv.appendChild(deleteButton)
     noteElement.appendChild(contentDiv)
@@ -57,18 +74,20 @@ ipcRenderer.on('notes-updated', (event, notes) => {
 // Save/Update note
 saveButton.addEventListener('click', () => {
   if (!noteContent.value.trim()) {
-    alert('Note cannot be empty!')
+    alert('Note content cannot be empty!')
     return
   }
 
   const note = {
     id: currentNote ? currentNote.id : null,
+    title: noteTitleInput.value.trim() || 'Untitled Note',
     content: noteContent.value,
     timestamp: Date.now()
   }
   
   ipcRenderer.send('save-note', note)
   noteContent.value = ''
+  noteTitleInput.value = ''
   currentNote = null
   saveButton.textContent = 'Save Note'
 })
@@ -76,6 +95,25 @@ saveButton.addEventListener('click', () => {
 // Cancel edit
 cancelButton.addEventListener('click', () => {
   noteContent.value = ''
+  noteTitleInput.value = ''
   currentNote = null
   saveButton.textContent = 'Save Note'
+})
+
+// Add handler for displaying notes
+ipcRenderer.on('display-note', (event, note) => {
+  if (!note) return;
+  currentlyViewedNoteId = note.id
+  viewerContent.textContent = note.content
+  viewerTitle.textContent = note.title || 'Untitled Note'
+  noteViewer.style.display = 'block'
+})
+
+// Add handler for deleted notes
+ipcRenderer.on('note-deleted', (event, noteId) => {
+  if (currentlyViewedNoteId === noteId) {
+    noteViewer.style.display = 'none'
+    viewerContent.textContent = ''
+    currentlyViewedNoteId = null
+  }
 })

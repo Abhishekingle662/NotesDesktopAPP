@@ -18,7 +18,12 @@
     <div class="container">
       <div class="sidebar" id="notesList"></div>
       <div class="main-content">
+        <div class="note-viewer" id="noteViewer">
+          <h2 id="viewerTitle">Note Viewer</h2>
+          <div id="viewerContent" class="viewer-content"></div>
+        </div>
         <div class="note-editor">
+          <input type="text" id="noteTitle" placeholder="Note Title..." class="title-input">
           <textarea id="noteContent" placeholder="Write your note here..."></textarea>
           <div class="button-group">
             <button class="button save-button" id="saveNote">Save Note</button>
